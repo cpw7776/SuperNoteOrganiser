@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.venv/
+.env
+.streamlit/secrets.toml
+
+# Generated wiki output (regenerable)
+wiki/*.md
+!wiki/.gitkeep
+
+# Local state DB
+state/*.json
+!state/.gitkeep

@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "note-organiser"
+version = "0.1.0"
+description = "Prototype agent that turns scattered notes into a Karpathy-style wiki with Action/Why/Purpose annotations."
+requires-python = ">=3.11"
+dependencies = [
+  "anthropic>=0.39",
+  "streamlit>=1.32",
+  "pydantic>=2.6",
+  "markdown-it-py>=3.0",
+  "python-frontmatter>=1.1",
+  "rapidfuzz>=3.6",
+  "python-dotenv>=1.0",
+]
+
+[project.scripts]
+note-organiser = "note_organiser.app:cli_run"
+
+[tool.setuptools.packages.find]
+include = ["note_organiser*"]
