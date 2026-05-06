@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import re
 from collections import defaultdict
 from pathlib import Path
@@ -11,6 +12,17 @@ _SLUG_RE = re.compile(r"[^a-z0-9]+")
 
 def slugify(text: str) -> str:
     return _SLUG_RE.sub("-", text.lower()).strip("-") or "untitled"
+
+
+def _section_html(kind: str, label: str, body_html: str) -> str:
+    """Emit one labelled section. `kind` selects the side-border colour
+    via the `nb nb-{kind}` class pair styled in app.py's CSS."""
+    return (
+        f'<div class="nb nb-{kind}">'
+        f'<div class="nb-l">{html.escape(label)}</div>'
+        f'<div class="nb-b">{body_html}</div>'
+        f'</div>'
+    )
 
 
 class KarpathyWikiRenderer:
@@ -68,39 +80,67 @@ class KarpathyWikiRenderer:
         path.write_text("\n".join(lines), encoding="utf-8")
 
     def _render_note(self, note: Note, all_notes: list[Note]) -> list[str]:
-        out: list[str] = [f"## {note.title}", ""]
-        if note.summary:
-            out.extend([f"_{note.summary}_", ""])
-        out.extend([note.body.strip(), ""])
-        out.extend(
-            [
-                f"**Action:** {note.action.action}",
-                f"**Why:** {note.action.why}",
-                f"**Purpose:** {note.action.purpose}",
-                "",
-            ]
+        slug = slugify(note.title)
+        title_html = html.escape(note.title)
+
+        body_html = "<br>".join(
+            html.escape(line) for line in note.body.strip().splitlines() or [""]
         )
+        sections: list[str] = [
+            f'<div class="note-card" id="{slug}-card">',
+            f'<h2 id="{slug}" class="note-card__title">{title_html}</h2>',
+        ]
+        if note.summary:
+            sections.append(
+                f'<p class="note-card__summary"><em>{html.escape(note.summary)}</em></p>'
+            )
+        sections.append(_section_html("orig", "Original note", body_html))
+        sections.append(_section_html("act", "Action", html.escape(note.action.action)))
+        sections.append(_section_html("why", "Why", html.escape(note.action.why)))
+        sections.append(_section_html("pur", "Purpose", html.escape(note.action.purpose)))
 
         if note.versions:
-            out.append("### Versions")
-            for i, v in enumerate(note.versions, 1):
-                out.append(f"- **v{i}:** {v.strip()}")
-            out.append("")
+            versions_html = "<br>".join(
+                f"<strong>v{i}.</strong> {html.escape(v.strip())}"
+                for i, v in enumerate(note.versions, 1)
+            )
+            sections.append(
+                _section_html("ver", f"{len(note.versions)} merged versions", versions_html)
+            )
 
-        backlinks = self._backlinks_for(note, all_notes)
-        meta_bits: list[str] = []
+        meta = self._meta_html(note, all_notes)
+        if meta:
+            sections.append(meta)
+        sections.append("</div>")
+        sections.append("")
+        return sections
+
+    def _meta_html(self, note: Note, all_notes: list[Note]) -> str:
+        bits: list[str] = []
         if note.tags:
-            meta_bits.append("Tags: " + " ".join(f"#{t}" for t in note.tags))
+            tag_html = " ".join(
+                f'<span class="nb-tag">#{html.escape(t)}</span>' for t in note.tags
+            )
+            bits.append(f'<span class="nb-meta-bit"><span class="nb-meta-key">Tags</span> {tag_html}</span>')
         if note.sources:
-            meta_bits.append("Sources: " + ", ".join(sorted(set(note.sources))))
+            src_html = ", ".join(
+                f'<span class="nb-source">{html.escape(s)}</span>'
+                for s in sorted(set(note.sources))
+            )
+            bits.append(f'<span class="nb-meta-bit"><span class="nb-meta-key">Source</span> {src_html}</span>')
         if note.devices:
-            meta_bits.append("Devices: " + ", ".join(sorted(set(note.devices))))
+            dev_html = ", ".join(
+                f'<span class="nb-device">{html.escape(d)}</span>'
+                for d in sorted(set(note.devices))
+            )
+            bits.append(f'<span class="nb-meta-bit"><span class="nb-meta-key">Device</span> {dev_html}</span>')
+        backlinks = self._backlinks_for(note, all_notes)
         if backlinks:
-            meta_bits.append("See also: " + ", ".join(f"[[{t}]]" for t in backlinks))
-        if meta_bits:
-            out.append("> " + " · ".join(meta_bits))
-            out.append("")
-        return out
+            see_html = ", ".join(f'<em>{html.escape(t)}</em>' for t in backlinks)
+            bits.append(f'<span class="nb-meta-bit"><span class="nb-meta-key">See also</span> {see_html}</span>')
+        if not bits:
+            return ""
+        return f'<div class="nb-meta">{"".join(bits)}</div>'
 
     def _backlinks_for(self, note: Note, all_notes: list[Note]) -> list[str]:
         my_tags = set(note.tags)

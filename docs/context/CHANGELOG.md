@@ -9,6 +9,54 @@ All notable changes to **SuperNoteOrganiser** are documented in this file.
 
 ## [Unreleased]
 
+### UI polish — note cards, wiki TOC, click-to-inspect, sticky settings, re-render — 2026-05-06
+
+Iterative polish on the Streamlit UI based on dogfooding the app with real notes (stub + Venice runs):
+
+- **Note cards on the wiki.** Each note on a category page is now wrapped in a `<div class="note-card">` with a 1px subtle border, faint background tint, rounded corners and generous internal padding — visually clear where one note ends and the next begins when scrolling a multi-note category. The `## Title` was switched from markdown auto-id headings to explicit `<h2 id="{slug}" class="note-card__title">` HTML so the slugs are guaranteed to match the TOC anchors. The renderer's `slugify()` is now also the source of truth for those ids.
+- **"On this page" TOC.** Multi-note category pages get a sticky left-column TOC listing each note with anchor links. Skipped on the index page (it already has links to each category in its body). Implemented as `st.columns([1, 4])` with the TOC in the left column; CSS `position: sticky` keeps it in view on scroll.
+- **Visual hierarchy for Action/Why/Purpose.** Each section (Original note, Action, Why, Purpose, Versions, Meta) renders as a coloured-left-border block with a small uppercase label. Colour key: Original=gray (italic), Action=green, Why=blue, Purpose=amber, Versions=purple. Tags render as blue chip pills, source filenames in amber monospace, devices in green monospace. Same visual language used in the wiki's rendered `.md` files AND the Notes-tab inspector — single shared CSS injected once at session start. `_section_html()` helper exists in both `app.py` and `karpathy_wiki.py` to keep the markup identical.
+- **Notes tab redesign.** Removed the redundant "Inspect a note" selectbox below the table — selecting a row in the dataframe now drives the inspector via `on_select="rerun"` + `selection_mode="single-row"`. Kept the top search box + category filter (those filter the underlying table). Added a search-prompted placeholder showing the count and a caption "click a row to inspect" so the new affordance is discoverable.
+- **Sticky sidebar settings.** Annotator / Model / Notes-dir / Wiki-dir all persist via URL query params (alongside the existing `tab` and `page` params). Survives browser refresh, Streamlit hot-reload, and full server restart. API keys stay in `.env`, never in the URL.
+- **Re-render wiki button.** New sidebar button that re-runs `KarpathyWikiRenderer.render(store.all(), wiki_dir)` against the existing store — useful after any renderer formatting change without paying for re-annotation. Saved a Venice round trip during this session's iteration.
+- **`use_container_width` deprecation cleanup.** Streamlit's `use_container_width` is removed after 2025-12-31; switched to `width="stretch"` on the dataframe.
+
+**Modified:**
+- `note_organiser/app.py` — large rewrite of `_render_wiki_browser` (TOC + columns + query-param-driven page select), `_render_notes_table` (search + filter + clickable rows + inspector), sidebar (sticky settings + re-render button), main (CSS injection)
+- `note_organiser/renderers/karpathy_wiki.py` — `_render_note` emits explicit HTML cards with `<h2 id="...">` headings; `_meta_html()` produces structured tags/source/device markup; `_section_html()` helper
+
+**DB changes:** None.
+**API changes:** None — internal renderer/UI changes only.
+**Auth changes:** None.
+
+---
+
+### Add Venice AI annotator + fix wiki navigation + fix relative imports — 2026-05-06
+
+Three changes landed during initial bootstrap testing:
+
+1. **VeniceAnnotator** — new `Annotator` impl using Venice AI's OpenAI-compatible API at `https://api.venice.ai/api/v1`. Embeds the `ANNOTATE_TOOL` / `MERGE_TOOL` JSON schemas in the system prompt and asks the model for plain JSON. Originally tried `response_format={"type": "json_object"}` but Venice rejects that on most of its catalogue (Llama 3.3 70B returns a 400: *"response_format is not supported by this model"*). Replaced with permissive parsing in `_extract_json`: tries raw JSON, then a ```` ```json ``` ```` fence, then the largest `{…}` slice. Verified end-to-end against `llama-3.3-70b` — produces correctly-shaped Action/Why/Purpose annotations following the system prompt's worked example. Wired into `config.py::_build_annotator` under `NOTE_ORGANISER_ANNOTATOR=venice`. Reads `VENICE_API_KEY` from env.
+
+2. **Wiki navigation** — links inside rendered wiki pages (`[text](slug.md)`) were dead: `streamlit run` opened them in a new tab, and the new tab defaulted to the Inbox tab. Fix: rewrite links into explicit HTML anchors `<a href="?page=slug.md&tab=Wiki" target="_self">…</a>`, render with `unsafe_allow_html=True`, drive the page selectbox + active tab from `st.query_params`. Also replaced `st.tabs` with a stateful `st.radio` so the active view persists across query-param-triggered reruns. Bookmarkable URLs now work.
+
+3. **Relative imports → absolute imports** — `note_organiser/app.py` had `from .config import …` and `from .stores import …`. `streamlit run note_organiser/app.py` execs the file as the top-level `__main__` module, so relative imports raised `ImportError: attempted relative import with no known parent package`. Switched to `from note_organiser.config import …` / `from note_organiser.stores import …`. Works because `pip install -e .` registers the package on `sys.path`.
+
+**New files:**
+- `note_organiser/annotators/venice.py` — VeniceAnnotator class
+
+**Modified:**
+- `pyproject.toml` — added `openai>=1.50` dependency
+- `note_organiser/annotators/__init__.py` — export VeniceAnnotator
+- `note_organiser/config.py` — `_build_annotator` dispatches on `venice`; AppConfig docstring updated
+- `note_organiser/app.py` — sidebar dropdown adds `venice` option; wiki tab uses query-param routing + HTML anchors with `target="_self"`; tabs replaced with stateful radio
+- `.env.example` — added `VENICE_API_KEY`; added comment showing venice-mode env vars
+
+**DB changes:** None.
+**API changes:** New concrete `Annotator` impl (`VeniceAnnotator`); the `Annotator` Protocol shape is unchanged.
+**Auth changes:** None — but the project now reads a second optional env var (`VENICE_API_KEY`).
+
+---
+
 ### Apply AI Dev Workflow Kit to the project — 2026-05-05
 
 Installed the universal AI Dev Workflow Kit (`docs/` + `.claude/agents/`) into the SuperNoteOrganiser repo and customized every `[CUSTOMIZE]` / `[PLACEHOLDER]` marker for this project's stack (Python 3.11+ / Streamlit / Anthropic SDK / file-based JSON store, no auth, no HTTP API). The four sub-agents now reference real commands (`pytest`, `pip install -e .`, `streamlit run note_organiser/app.py`), the right env vars (`ANTHROPIC_API_KEY`, `NOTE_ORGANISER_*`), and the right user-facing surfaces (`README.md`, `.env.example`, the Streamlit sidebar copy in `app.py`). The seven context files are reframed for this project: `database_reference_guide.md` documents the `Note` model + `state/notes.json` schema; `API_REFERENCE.md` documents the Protocol contracts in `interfaces.py` (the project's extension API); `Project_Authentication.md` is N/A for the prototype but kept as a stub.

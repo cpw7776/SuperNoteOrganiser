@@ -6,7 +6,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-from .annotators import ClaudeAnnotator, StubAnnotator
+from .annotators import ClaudeAnnotator, StubAnnotator, VeniceAnnotator
 from .dedupers import FuzzyTitleDeduper
 from .interfaces import Annotator
 from .pipeline import Pipeline
@@ -24,7 +24,7 @@ class AppConfig:
     notes_dir: Path = Path("notes")
     wiki_dir: Path = Path("wiki")
     state_path: Path = Path("state/notes.json")
-    annotator_kind: str = "claude"  # "claude" | "stub"
+    annotator_kind: str = "claude"  # "claude" | "stub" | "venice"
     model: str = "claude-sonnet-4-6"
     title_threshold: int = 85
     body_threshold: float = 0.4
@@ -50,6 +50,14 @@ def _build_annotator(config: AppConfig) -> Annotator:
                 "or set NOTE_ORGANISER_ANNOTATOR=stub for an offline run."
             )
         return ClaudeAnnotator(model=config.model)
+    if config.annotator_kind == "venice":
+        if not os.environ.get("VENICE_API_KEY"):
+            raise RuntimeError(
+                "VENICE_API_KEY is not set. Either export it or populate .env. "
+                "When using venice, set the Model field to a Venice-hosted model id "
+                "(e.g. 'llama-3.3-70b'); the default 'claude-sonnet-4-6' won't work."
+            )
+        return VeniceAnnotator(model=config.model)
     raise ValueError(f"Unknown annotator_kind: {config.annotator_kind!r}")
 
 
