@@ -9,6 +9,26 @@ All notable changes to **SuperNoteOrganiser** are documented in this file.
 
 ## [Unreleased]
 
+### Make README.md a mandatory line in the Phase 5.5b docs gate — 2026-05-06
+
+This project is public on GitHub (`cpw7776/SuperNoteOrganiser`); the root `README.md` is the front door for any visitor and must stay accurate as the project evolves. Promoted README review to a mandatory gate item in `.claude/agents/docs-auditor-agent.md`, mirroring the CHANGELOG mandatory rule in `context-docs-agent`.
+
+**Changes:**
+- New section **5.1.c — README.md (MANDATORY review every run)** in the docs-auditor: agent must read the README every Phase 5.5b run, decide between Update / Skip-with-explicit-reason, and record the action.
+- New gate-block line **`1.c. README.md (MANDATORY): [Updated — {what} / Reviewed, no update needed because {explicit signal-grounded reason}]`** — same shape as the CHANGELOG mandatory line.
+- Failure-mode section explicitly calls out 1.c: a bare skip ("no update needed" / "minor change") is a gate failure; the skip reason must reference a concrete signal the agent checked.
+- `CLAUDE.md` Post-Feature Gates summary updated to flag the new mandatory line so any session reading CLAUDE.md upfront knows what's expected.
+
+**Files affected:**
+- `.claude/agents/docs-auditor-agent.md` — added 5.1.c, added 1.c to gate format, reinforced failure-mode rule
+- `CLAUDE.md` — updated DOCUMENTATION GATE summary
+
+**DB changes:** None.
+**API changes:** None.
+**Auth changes:** None.
+
+---
+
 ### UI polish — note cards, wiki TOC, click-to-inspect, sticky settings, re-render — 2026-05-06
 
 Iterative polish on the Streamlit UI based on dogfooding the app with real notes (stub + Venice runs):

@@ -132,6 +132,19 @@ For each kit change, answer each question. If ANY answer is YES, you must update
 
 Record the Q1–Q5 answers and the action taken for the gate block (under section "User-Facing Surfaces").
 
+### 5.1.c — README.md (MANDATORY review every run)
+
+> **MANDATORY every Phase 5.5b run.** SuperNoteOrganiser is a public GitHub repo (`cpw7776/SuperNoteOrganiser`). The root `README.md` is the front door — the first thing a stranger reading the repo sees, and the only place a non-Claude-Code visitor learns what the project does. It MUST be reviewed every feature, with the same rigor as the CHANGELOG entry in `context-docs-agent`.
+
+The decision is binary:
+
+- **Update README.md** if the change set touches anything a public visitor would read: pitch / one-liner, install steps, Quick start, Architecture table, supported annotators, env vars, model defaults, on-disk layout (notes/wiki/state), license, status, badges, screenshots.
+- **Skip with explicit reason** ONLY if the change is genuinely internal-only (refactor with no user-visible behaviour change, doc-only change to context files, internal Protocol shape change with no impact on the README's Architecture table). The skip reason must reference a concrete signal you checked, not "I don't think it's needed".
+
+"No update needed" without an explicit, signal-grounded reason is a **gate failure** — like the CHANGELOG mandatory line, line 1.c can never be skipped silently.
+
+Record the action taken for the gate block (under section "README.md").
+
 ### 5.2 — FAQ Decision Tree
 
 > **SuperNoteOrganiser: this entire decision tree resolves to ALL NO.** No FAQ surface. Questions a user might have are answered in `README.md`. Skip with reason `prototype has no FAQ surface; the README is the only documentation`.
@@ -206,6 +219,8 @@ DOCUMENTATION GATE (User-Facing):
    - Q5 (changed on-disk layout under notes/wiki/state?): [YES/NO — what]
    → Action: [Updated README.md / .env.example / note_organiser/app.py / ALL NO because {reason}]
 
+1.c. README.md (MANDATORY): [Updated — {what changed} / Reviewed, no update needed because {explicit signal-grounded reason}]
+
 2. FAQ:
    - Q1 (new user would have questions?): [YES/NO]
    - Q2 (name needs explaining?): [YES/NO — which name]
@@ -242,6 +257,8 @@ DOCUMENTATION GATE (User-Facing):
 If ANY decision-tree answer is "no update needed" **without** the question-by-question breakdown, the agent must self-correct — go back and walk the tree properly.
 
 If a YES answer is given but no corresponding file was created/updated, that is also a gate failure.
+
+**Line 1.c (`README.md`) is mandatory**: every Phase 5.5b run must produce either a real update to `README.md` or an explicit, signal-grounded skip reason ("internal Protocol shape change with no architectural-table impact" is acceptable; "no update needed" or "minor change" is not). Same rigor as the CHANGELOG line in `context-docs-agent`. A bare skip is a gate failure.
 
 ---
 
